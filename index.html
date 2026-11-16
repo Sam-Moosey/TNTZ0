@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en" data-pdf="TNTZO_A0_poster_IEEE-EMBS-2026.pdf" data-drawing="FV6_engineering_drawing_PS2-42722-FV6-001.pdf">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TNTZO stem explorer</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#16233F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Inter+Tight:wght@600;700;800&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Same palette and type as the printed poster, so the page reads as its companion. */
+  --ink: #16233F; --ink-2: #3F4D68; --muted: #5A6780; --line: #D3DAE4; --tray: #EDF0F5; --card: #FFFFFF;
+  --good: #17804A; --good-bg: #E6F4EC; --bad: #BE3A2B; --bad-bg: #FBEAE7; --pass: #2C416B;
+  --tntzo: #1F4E9A; --ti64: #E0862C; --ti64-deep: #B25E0C;
+  --display: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Layout: a one-screen tool. The 3D stage sits above (narrow) or beside (wide) a scrolling results panel. */
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--tray); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; -webkit-text-size-adjust: 100%; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--tntzo); outline-offset: 2px; }
+h1, h2, h3, h4, p, dl, dd { margin: 0; }
+[hidden] { display: none !important; }
+
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(260px, 48%) minmax(0, 1fr); }
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 16px; background: var(--ink); color: #fff; }
+.top h1 { font: 700 16px/1.2 var(--display); letter-spacing: 0.005em; white-space: nowrap; }
+.top h1 span { font-family: var(--mono); font-weight: 700; font-size: 13px; letter-spacing: 0.08em; background: #fff; color: var(--ink); padding: 2px 6px; border-radius: 4px; margin-right: 6px; }
+.top p { font-size: 12px; color: #C6CEDD; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.stage { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; min-width: 0; border-bottom: 1px solid var(--line); }
+.view { position: relative; min-height: 0; overflow: hidden; background: radial-gradient(120% 90% at 50% 38%, #FBFCFE 0%, #E2E7EF 100%); }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#gl:active { cursor: grabbing; }
+.hud { position: absolute; display: flex; align-items: center; gap: 6px; pointer-events: none; }
+.hud-tl { left: 14px; top: 10px; flex-direction: column; align-items: flex-start; gap: 0; max-width: 46%; }
+.hud-tl span { text-shadow: 0 0 5px #fff, 0 0 2px #fff, 0 0 1px #fff; }
+#hud-id { font: 700 15px/1.25 var(--mono); }
+#hud-title { font: 600 12.5px/1.25 var(--body); color: var(--ink-2); }
+.hud-tr { right: 10px; top: 10px; flex-direction: column; align-items: flex-end; pointer-events: auto; }
+.hud-tr .row { display: flex; gap: 6px; }
+.hud-bl { left: 14px; bottom: 10px; }
+.hud-br { right: 14px; bottom: 8px; font-size: 11.5px; color: var(--muted); transition: opacity 0.4s; }
+.touched .hud-br { opacity: 0; }
+#scalebar { position: relative; height: 6px; min-width: 10px; border: solid var(--ink); border-width: 0 1.5px 1.5px; }
+#scalebar span { position: absolute; left: 0; bottom: 8px; font: 500 10.5px/1 var(--mono); color: var(--ink-2); white-space: nowrap; }
+.mini { font: 600 12px/1 var(--body); padding: 0 10px; min-height: 32px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255, 255, 255, 0.92); }
+.mini[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.92); flex: none; }
+.seg button { border: 0; background: transparent; font: 600 12.5px/1 var(--body); padding: 0 11px; min-height: 36px; color: var(--ink-2); white-space: nowrap; }
+.seg.small button { min-height: 32px; font-size: 12px; padding: 0 9px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.seg button[data-alloy="tntzo"][aria-pressed="true"] { background: var(--tntzo); }
+.seg button[data-alloy="ti64"][aria-pressed="true"] { background: var(--ti64-deep); }
+.tools { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--card); border-top: 1px solid var(--line); min-width: 0; }
+.tlabel { font: 700 11px/1 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); flex: none; }
+.tools input[type="range"] { flex: 1 1 80px; min-width: 60px; height: 32px; margin: 0; accent-color: var(--ink); }
+.loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px; padding: 8px 14px; max-width: 90%; background: rgba(255, 255, 255, 0.95); border: 1px solid var(--line); border-radius: 999px; font: 600 12.5px/1.3 var(--body); box-shadow: 0 4px 14px rgba(22, 35, 63, 0.12); }
+.spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--ink); animation: spin 0.8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } .hud-br { transition: none; } }
+.ztags { position: absolute; inset: 0; pointer-events: none; display: none; }
+body[data-mode="femur"]:not(.nozones) .ztags { display: block; }
+.ztag { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 4px; padding: 2px 7px 2px 2px; border-radius: 999px; background: #fff; border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(22, 35, 63, 0.14); font: 700 11px/1 var(--mono); white-space: nowrap; will-change: transform; }
+.ztag b { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 10.5px; }
+.ztag::after { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--zc, #EFE8D8); border: 1px solid rgba(22, 35, 63, 0.2); }
+.nb { white-space: nowrap; }
+@media (max-width: 600px) { .ztag { font-size: 10px; gap: 3px; padding: 1px 5px 1px 1px; } .ztag b { width: 16px; height: 16px; font-size: 9.5px; } .ztag::after { width: 7px; height: 7px; } }
+.nogl-fig, .nogl-msg { display: none; }
+.nogl #gl, .nogl .hud-tr, .nogl .hud-bl, .nogl .hud-br, .nogl .tools, .nogl .ztags { display: none !important; }
+.nogl .nogl-fig { display: grid; place-items: center; position: absolute; inset: 44px 16px 40px; }
+.nogl .nogl-msg { display: block; position: absolute; left: 16px; right: 16px; bottom: 10px; font-size: 12px; color: var(--muted); text-align: center; }
+.sil path { fill: var(--c, #9AA6B8); }
+.sil .pores circle { fill: #fff; }
+.sil.big { height: 100%; width: auto; max-width: 100%; }
+
+.panel { min-height: 0; min-width: 0; overflow-y: auto; background: var(--card); padding: 0 16px 28px; -webkit-overflow-scrolling: touch; }
+.tabs { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--card); padding: 10px 0; border-bottom: 1px solid var(--line); }
+.tabs button { min-height: 40px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font: 600 13.5px/1.1 var(--body); color: var(--ink-2); }
+.tabs button[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.stages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+.stagebtn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 46px; padding: 4px 2px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.stagebtn .n { font: 700 11px/1 var(--mono); color: var(--muted); }
+.stagebtn .t { font: 600 12.5px/1.1 var(--body); }
+.stagebtn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.stagebtn[aria-pressed="true"] .n { color: #C6CEDD; }
+.thumbs { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.thumb { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 2px 7px; border: 1px solid var(--line); border-radius: 8px; background: #fff; min-width: 0; }
+.thumb .sil { height: 74px; width: auto; max-width: 100%; }
+.thumb .lab { font: 700 11.5px/1 var(--mono); color: var(--ink-2); }
+.thumb .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.thumb.st-sel .dot { background: var(--good); } .thumb.st-pass .dot { background: var(--pass); } .thumb.st-fail .dot { background: var(--bad); } .thumb.st-ref .dot { background: #8793A8; }
+.thumb[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: #F4F6FA; }
+.thumb[aria-pressed="true"] .lab { color: var(--ink); }
+.key-dots { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+.key-dots span { display: inline-flex; align-items: center; gap: 5px; }
+.key-dots i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.vcard { margin-top: 16px; }
+.vhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.vid { font: 700 13px/1.2 var(--mono); letter-spacing: 0.03em; color: var(--muted); }
+.vhead h2 { font: 700 25px/1.08 var(--display); letter-spacing: -0.01em; margin-top: 2px; text-wrap: balance; }
+.vnote { margin-top: 6px; color: var(--ink-2); max-width: 62ch; }
+.chip { flex: none; font: 700 11px/1 var(--body); letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 8px; border-radius: 5px; border: 1px solid; white-space: nowrap; margin-top: 2px; }
+.chip-sel { background: var(--good); border-color: var(--good); color: #fff; }
+.chip-kept { background: var(--good-bg); color: var(--good); }
+.chip-pass { background: #fff; border-color: var(--ink); color: var(--ink); }
+.chip-fail { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
+.chip-ref { background: #fff; border-color: var(--muted); color: var(--muted); }
+.gauge { margin-top: 14px; padding: 12px 14px 10px; border: 1px solid var(--line); border-radius: 10px; --tone: var(--pass); }
+.tone-bad { --tone: var(--bad); } .tone-good { --tone: var(--good); } .tone-ref { --tone: #8793A8; }
+.gtop { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.glab { font: 700 11px/1.2 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.gval { font: 800 30px/1 var(--display); color: var(--tone); font-variant-numeric: tabular-nums; }
+.gval small { font: 600 13px/1 var(--body); }
+.gtrack { position: relative; height: 12px; margin-top: 10px; background: #E7EBF1; border-radius: 6px; }
+.gbar { height: 100%; min-width: 4px; border-radius: 6px; background: var(--tone); }
+.glim { position: absolute; top: -5px; bottom: -5px; width: 0; border-left: 2px dashed var(--bad); }
+.gaxis { position: relative; display: flex; justify-content: space-between; margin-top: 8px; font: 500 11px/1 var(--mono); color: var(--muted); }
+.glimlab { position: absolute; top: 0; transform: translateX(-50%); color: var(--bad); white-space: nowrap; }
+.gnote { margin-top: 9px; font-size: 12px; color: var(--muted); }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 10px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.facts div { background: #fff; padding: 8px 12px; min-width: 0; }
+.facts dt { font-size: 11.5px; color: var(--muted); }
+.facts dd { font: 600 15px/1.3 var(--body); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.story, .about { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.eyebrow { display: flex; align-items: center; gap: 7px; font: 600 12px/1 var(--body); color: var(--muted); }
+.tagk { font: 700 11px/1 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: #fff; background: var(--ink); padding: 4px 6px; border-radius: 4px; }
+.fdot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.panel h3 { font: 700 21px/1.1 var(--display); letter-spacing: -0.01em; margin-top: 8px; text-wrap: balance; }
+.story p, #view-femur p { margin-top: 8px; color: var(--ink-2); max-width: 65ch; }
+p.decision { display: flex; gap: 8px; margin-top: 12px; padding: 10px 12px; background: var(--good-bg); border-radius: 8px; font-weight: 600; color: var(--ink) !important; }
+p.decision span:first-child { color: var(--good); font-weight: 700; }
+p.rule { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--ink); border-radius: 8px; font-size: 13px; color: var(--ink-2); }
+p.rule b { color: var(--ink); }
+
+#view-femur { padding-top: 14px; }
+.fstat { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+.fstat .big { font: 800 50px/0.95 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; flex: none; }
+.fstat .bigsub { font-size: 13px; color: var(--ink-2); }
+.fstat .bigsub b { color: var(--ink); font-size: 14px; }
+.zhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; margin-top: 18px; font: 700 11px/1.3 var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.zhead .key { display: inline-flex; align-items: center; gap: 5px; font: 600 12px/1 var(--body); letter-spacing: 0; text-transform: none; color: var(--ink-2); }
+.k { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-left: 6px; }
+.k.tn, .zb.tn { background: var(--tntzo); } .k.ti, .zb.ti { background: var(--ti64); }
+.zrows { margin-top: 6px; border-bottom: 1px solid #EEF1F5; }
+.zrow { display: grid; grid-template-columns: 20px minmax(0, 104px) minmax(0, 1fr) 74px; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid #EEF1F5; }
+.zn { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: #fff; font: 700 11px/1 var(--mono); }
+.zname { font-size: 12.5px; color: var(--ink-2); }
+.zbars { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.zb { height: 6px; min-width: 2px; border-radius: 3px; opacity: 0.3; }
+.zb.on { opacity: 1; }
+.zv { display: flex; justify-content: flex-end; gap: 4px; font: 500 12px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.zv b { font-weight: 500; width: 35px; text-align: right; }
+.zv b.on { font-weight: 700; color: var(--ink); }
+.fine { font-size: 12px; color: var(--muted) !important; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-size: 13.5px; font-weight: 600; }
+.checks label { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; }
+.checks input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
+.keys { margin-top: 14px; display: grid; gap: 10px; }
+.keys div { border-top: 1px solid var(--ink); padding-top: 7px; }
+.keys dt { font: 800 24px/1 var(--display); letter-spacing: -0.01em; }
+.keys dd { margin-top: 3px; font-size: 13px; color: var(--ink-2); max-width: 62ch; }
+.about h4 { font: 700 11px/1.2 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.about h4:not(:first-child) { margin-top: 18px; }
+.about p, .about li { margin-top: 8px; font-size: 12.5px; color: var(--ink-2); max-width: 68ch; }
+.about p b, .about li b { color: var(--ink); }
+.about a { color: var(--tntzo); text-underline-offset: 2px; overflow-wrap: anywhere; }
+.about ul, .about ol { margin: 0; padding-left: 18px; }
+.about details { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; }
+.about summary { min-height: 40px; display: flex; align-items: center; font: 600 13px/1.2 var(--body); color: var(--ink); cursor: pointer; list-style-position: inside; }
+.about summary::-webkit-details-marker { margin-right: 6px; }
+.about details[open] { padding-bottom: 12px; }
+.about details p:first-of-type { margin-top: 2px; }
+.about .absnote { padding: 8px 10px; background: var(--tray); border-radius: 6px; }
+.contact { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-top: 8px; font-size: 13px; }
+.contact a { font: 600 13px/1.3 var(--mono); }
+
+/* Stress plot beside the gauge in the variant card */
+.vgrid { display: grid; grid-template-columns: min(40%, 200px) minmax(0, 1fr); gap: 12px; margin-top: 14px; align-items: start; }
+.vright { min-width: 0; container-type: inline-size; }
+.vright .gauge { margin-top: 0; }
+.vright .facts { grid-template-columns: minmax(0, 1fr); }
+@container (min-width: 270px) { .vright .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.fea { margin: 0; min-width: 0; }
+.feaimg { position: relative; width: 100%; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: #F6F8FB; overflow: hidden; }
+.feaimg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.feaload { font-size: 11.5px; color: var(--muted); padding: 8px; text-align: center; }
+.fea figcaption { display: grid; gap: 3px; margin-top: 6px; font-size: 11px; line-height: 1.3; color: var(--muted); }
+.rampbar { display: block; height: 7px; border-radius: 2px; background: linear-gradient(90deg, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF0000); }
+.rl { display: flex; justify-content: space-between; font: 500 10.5px/1 var(--mono); color: var(--ink-2); }
+.zkey { display: grid; grid-template-columns: auto minmax(90px, 220px); column-gap: 10px; row-gap: 3px; align-items: center; margin-top: 10px; font-size: 12px; color: var(--ink-2); }
+.zkey > span:first-child { grid-row: 1 / 3; white-space: nowrap; }
+.zgrad { display: block; height: 8px; border-radius: 2px; border: 1px solid rgba(22, 35, 63, 0.15); background: linear-gradient(90deg, #EFE8D8 0%, #F4D49A 15%, #F0A860 35%, #DE6E3C 57.5%, #B9381F 80%, #8E2418 100%); }
+.zkey .rl { grid-column: 2; }
+#gl:focus-visible { outline: 2px solid var(--tntzo); outline-offset: -3px; }
+
+/* FV6 engineering drawing: tile on the card, full-screen viewer */
+.drwtile { display: grid; grid-template-columns: min(46%, 230px) minmax(0, 1fr); gap: 12px; align-items: center; width: 100%; margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; text-align: left; }
+.drwtile:hover { border-color: var(--ink-2); }
+.drwtile:focus-visible { outline: 2px solid var(--tntzo); outline-offset: 2px; }
+.drwthumb { position: relative; display: grid; place-items: center; aspect-ratio: 842 / 596; border: 1px solid var(--line); border-radius: 6px; background: #fff; overflow: hidden; }
+.drwthumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.drwtext { display: grid; gap: 4px; min-width: 0; font-size: 12.5px; line-height: 1.35; color: var(--ink-2); }
+.drwtext b { font: 700 13.5px/1.2 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+.drwcta { font: 600 13px/1.2 var(--body); color: var(--tntzo); }
+.about .mini { margin-top: 8px; min-height: 40px; }
+#drw-dlg { position: fixed; inset: 0; z-index: 50; width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #E9EDF3; color: var(--ink); }
+#drw-dlg[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+#drw-dlg::backdrop { background: rgba(22, 35, 63, 0.55); }
+.dlgbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; background: var(--ink); color: #fff; }
+.dlgbar h2 { font: 700 15px/1.2 var(--display); min-width: 0; }
+.dlgbar h2 span { display: block; font: 500 11.5px/1.25 var(--mono); color: #C6CEDD; }
+.dlgtools { display: flex; gap: 6px; flex: none; }
+.dlgtools .mini { min-width: 40px; min-height: 40px; font-size: 15px; display: inline-grid; place-items: center; text-decoration: none; color: var(--ink); }
+.dlgtools .mini:disabled { opacity: 0.45; cursor: default; }
+.dlgbody { position: relative; overflow: auto; display: flex; padding: 8px; touch-action: pan-x pan-y; overscroll-behavior: contain; cursor: zoom-in; outline: none; -webkit-overflow-scrolling: touch; }
+.dlgbody:focus-visible { box-shadow: inset 0 0 0 2px var(--tntzo); }
+.dlgbody img { margin: auto; display: block; flex: none; max-width: none; background: #fff; box-shadow: 0 1px 6px rgba(22, 35, 63, 0.18); user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+.dlgbody .feaload { margin: auto; }
+.dlgbody.zoomed { cursor: grab; } .dlgbody.dragging { cursor: grabbing; }
+.dlghint { padding: 6px 12px 8px; font-size: 12px; color: var(--muted); background: #fff; border-top: 1px solid var(--line); }
+body.dlg-open .panel { overflow: hidden; }
+@media (max-width: 520px) { .dlgbar { padding: 6px 8px; } .dlgbar h2 { font-size: 13.5px; } .dlgtools { gap: 4px; } .dlgtools .mini { min-width: 38px; padding: 0 8px; } }
+.sub-short { display: none; }
+@media (max-width: 520px) { .sub-long { display: none; } .sub-short { display: inline; } }
+
+@media (min-width: 920px), (min-width: 600px) and (orientation: landscape) and (max-height: 540px) {
+  .app { grid-template-columns: minmax(0, 1.35fr) minmax(390px, 0.85fr); grid-template-rows: auto minmax(0, 1fr); }
+  .top { grid-column: 1 / -1; padding: 10px 24px; }
+  .stage { border-bottom: 0; border-right: 1px solid var(--line); }
+  .panel { padding: 0 24px 36px; }
+  .tools { padding: 10px 24px; }
+  .thumb .sil { height: 92px; }
+  .hud-tl { left: 24px; top: 16px; } .hud-tr { right: 16px; top: 14px; flex-direction: row; } .hud-bl { left: 24px; bottom: 14px; } .hud-br { right: 24px; bottom: 12px; }
+  #hud-id { font-size: 18px; } #hud-title { font-size: 14px; }
+}
+</style>
+</head>
+<body data-mode="evo">
+<div class="app">
+  <header class="top">
+    <h1><span>TNTZO</span>stem explorer</h1>
+    <p><span class="sub-long">Poster 10 · IEEE EMBS Research Symposium 2026 · UTS</span><span class="sub-short">Poster 10 · EMBS 2026</span></p>
+  </header>
+
+  <section class="stage" id="stage" aria-label="3D model viewer">
+    <div class="view" id="stage-view">
+      <canvas id="gl" aria-label="Interactive 3D model. Drag to rotate, pinch or scroll to zoom. When focused, arrow keys rotate and plus or minus zoom."></canvas>
+      <div class="nogl-fig" id="nogl-fig"></div>
+      <p class="nogl-msg">3D graphics are not available on this device. The outlines and results still work.</p>
+      <div class="hud hud-tl"><span id="hud-id">FV6</span><span id="hud-title">Neck-root relief</span></div>
+      <div class="hud hud-tr">
+        <div class="row">
+          <button type="button" class="mini" id="btn-spin" aria-pressed="false">Spin</button>
+          <button type="button" class="mini" id="btn-reset">Reset</button>
+        </div>
+        <div class="seg small" id="finish-seg" role="group" aria-label="Surface finish">
+          <button type="button" data-finish="print" aria-pressed="true">As printed</button>
+          <button type="button" data-finish="ti" aria-pressed="false">Titanium</button>
+        </div>
+      </div>
+      <div class="ztags" id="ztags" aria-hidden="true"></div>
+      <div class="hud hud-bl"><div id="scalebar"><span>20 mm</span></div></div>
+      <div class="hud hud-br">Drag to rotate · pinch to zoom</div>
+      <div class="loading" id="loading" role="status" hidden></div>
+    </div>
+    <div class="tools" id="tools-evo">
+      <span class="tlabel" id="slice-lab">Slice</span>
+      <div class="seg" role="group" aria-label="Slice direction">
+        <button type="button" data-slicedir="z" aria-pressed="true" aria-label="Slice from front to back">Front</button>
+        <button type="button" data-slicedir="y" aria-pressed="false" aria-label="Slice from the top down">Top</button>
+      </div>
+      <input type="range" id="slice" min="0" max="100" step="1" value="0" aria-labelledby="slice-lab">
+    </div>
+    <div class="tools" id="tools-femur" hidden>
+      <div class="seg" role="group" aria-label="Stem alloy">
+        <button type="button" data-alloy="tntzo" aria-pressed="true">TNTZO</button>
+        <button type="button" data-alloy="ti64" aria-pressed="false">Ti-6Al-4V</button>
+      </div>
+      <label class="tlabel" for="cut">Cut bone</label>
+      <input type="range" id="cut" min="0" max="100" step="1" value="42">
+    </div>
+  </section>
+
+  <section class="panel" id="panel" aria-label="Results">
+    <div class="tabs" role="tablist" aria-label="Views">
+      <button type="button" role="tab" id="tab-evo" aria-selected="true" aria-controls="view-evo">26 printed variants</button>
+      <button type="button" role="tab" id="tab-femur" aria-selected="false" aria-controls="view-femur">In the femur</button>
+    </div>
+
+    <div id="view-evo" role="tabpanel" aria-labelledby="tab-evo">
+      <div class="stages" id="stages" role="group" aria-label="Design stage"></div>
+      <div class="thumbs" id="thumbs" role="group" aria-label="Variant"></div>
+      <div class="key-dots" aria-hidden="true">
+        <span><i style="background:var(--good)"></i>carried forward</span><span><i style="background:var(--pass)"></i>passes</span><span><i style="background:var(--bad)"></i>over the limit</span><span><i style="background:#8793A8"></i>reference</span>
+      </div>
+      <article class="vcard" id="vcard" aria-live="polite"></article>
+      <section class="story" id="story"></section>
+      <p class="rule"><b>One rule at every stage.</b> Keep the most compliant variant whose decision regions stay at or below 113 MPa: a 170 MPa fatigue estimate (Kong et al., 2022) divided by 1.5. Stage 1 kept extra margin for the pores to come.</p>
+    </div>
+
+    <div id="view-femur" role="tabpanel" aria-labelledby="tab-femur" hidden>
+      <div class="eyebrow"><span class="tagk">Stage 6</span><span>simulation only</span></div>
+      <h3>Does it load the bone?</h3>
+      <div class="fstat" id="fstat"></div>
+      <div class="zhead"><span>Stress shielding by Gruen zone, %</span><span class="key"><i class="k tn"></i>TNTZO<i class="k ti"></i>Ti-6Al-4V</span></div>
+      <div class="zrows" id="zrows"></div>
+      <p class="fine" id="fmean"></p>
+      <div class="zkey"><span>Zone colour in the 3D view</span><span class="zgrad" aria-hidden="true"></span><span class="rl" aria-hidden="true"><span>0%</span><span>40%</span><span>80%</span></span></div>
+      <div class="checks">
+        <label for="chk-zones"><input type="checkbox" id="chk-zones" checked>Zone colours</label>
+        <label for="chk-canc"><input type="checkbox" id="chk-canc" checked>Cancellous bone</label>
+      </div>
+      <p class="decision"><span aria-hidden="true">→</span><span>The alloy decides. Grading the lattice changed bone loading by less than 0.2 points.</span></p>
+      <dl class="keys">
+        <div><dt>87 MPa</dt><dd>Peak stem stress in the femur, at the head–neck junction with TNTZO: safety factor 1.95 against the 170 MPa fatigue estimate.</dd></div>
+        <div><dt>&lt; 0.2 points</dt><dd>Difference between graded and uniform lattices, every zone, both alloys.</dd></div>
+        <div><dt>2.7 points</dt><dd>Calcar shielding saved by the lattice against a solid TNTZO stem (51.1% to 48.4%).</dd></div>
+        <div><dt>0.27</dt><dd>Calcar strain-energy ratio with TNTZO (0.12 with Ti-6Al-4V). Bone loss is predicted below 0.25 to 0.40 (Liu et al., 2021; Naghavi et al., 2022), so some resorption is still expected.</dd></div>
+      </dl>
+      <p class="fine">FV6 in a femur model under 1619 N (2.2 × body weight), distal end fixed, interfaces bonded. Young’s modulus: cortical bone 17 GPa, TNTZO 56.5 GPa, Ti-6Al-4V 110 GPa. The index is 1 − implanted / intact cortical stress, averaged along medial and lateral probe lines in each zone. Colours show those zone averages, not a full stress field. The neck cut and the cut-away are drawn for display.</p>
+    </div>
+
+    <footer class="about">
+      <h4>About this page</h4>
+      <p><b>Finite Element Analysis and Biomechanical Optimisation of a Load-Informed Graded Lattice Femoral Stem Using Low-Modulus β-Titanium.</b> Samuel Gardner, Anna Kalogianni, Bridget Lee, Marco Tapia and Stejin Shaji, University of Technology Sydney.</p>
+      <p class="contact"><span>Contact: <b>Samuel Gardner</b></span><a href="mailto:samuel.t.gardner@student.uts.edu.au">samuel.t.gardner@student.uts.edu.au</a></p>
+      <p id="pdf-link" hidden><a>Download the A0 poster (PDF)</a></p>
+      <p>TNTZO (Ti-34Nb-13Ta-5Zr-0.3O) is a β-titanium alloy with a Young’s modulus of 56.5 GPa, about half that of Ti-6Al-4V.</p>
+      <p>The final stem, FV6, is fully dimensioned on its A4 engineering drawing (PS2-42722-FV6-001): front and side views, two sections at 2:1, material, lattice and manufacturing notes.</p>
+      <button type="button" class="mini" data-open-drawing aria-haspopup="dialog">Open the FV6 engineering drawing</button>
+      <p>The models are the CAD geometry analysed in SOLIDWORKS Simulation, at full size and lightly simplified for the web. The prints on the poster are 80% scale, in PLA, and check geometry only. Stresses come from an <span class="nb">ISO 7206-4</span> style test at 2300 N. Each stress plot uses the same 0 to 150 MPa scale as the poster.</p>
+      <details>
+        <summary>Abstract as submitted</summary>
+        <p>Stress shielding remains a major challenge in cementless total hip arthroplasty, arising from the stiffness mismatch between conventional metallic femoral stems and surrounding bone. This study investigated whether combining low-modulus β-titanium (TNTZO) with stress-informed lattice optimisation could improve proximal femoral load transfer while maintaining structural integrity.</p>
+        <p>A systematic finite element analysis (FEA) framework was implemented in SOLIDWORKS to optimise blade thickness, neck diameter, material reduction strategies and lattice distribution. Design variants were evaluated under an ISO 7206-4-inspired loading configuration of 2300 N, using regional von Mises stress, construct stiffness and an estimated fatigue safety factor as performance metrics. Physiological FEA under a 1619 N load subsequently compared graded, uniform and solid femoral stem configurations using TNTZO and Ti-6Al-4V, assessing stress shielding across the seven Gruen zones.</p>
+        <p>The optimised stem incorporated a 61-pore load-informed graded lattice, a patient-matched calcar collar and a reinforced neck geometry. The final configuration achieved a 10.1% material volume reduction and 6% lower construct stiffness relative to the solid stem, while maintaining an estimated fatigue safety factor of 1.66. TNTZO reduced the calcar stress-shielding index from approximately 65% for Ti-6Al-4V to 48%. However, graded and uniform lattice configurations demonstrated nearly identical proximal load-transfer behaviour, indicating that material modulus exerted a substantially greater influence on stress shielding than local porosity distribution.</p>
+        <p>These findings highlight the importance of material–geometry interactions in orthopaedic implant optimisation. Although stress-informed lattice placement enabled material reduction within the assumed fatigue constraints, low-modulus alloy selection was the dominant factor influencing proximal load transfer. Further experimental fatigue characterisation and implant–bone interface evaluation are required to establish clinical applicability.</p>
+        <p class="absnote">Rechecked since submission: the final stem (FV6) is 9.0% lighter and 6.4% less stiff than its solid twin. The 10.1% and 6% figures are the stage 4 lattice against the solid stem.</p>
+      </details>
+      <h4>Limits and next steps</h4>
+      <ul>
+        <li><b>Stresses are comparative.</b> The ISO runs used β = 0° (the standard uses 9°); a β = 9° check more than doubled body stress. Next: re-run at β = 9°.</li>
+        <li><b>Material data are borrowed.</b> 170 MPa is for aged TNT5Zr (Kong et al., 2022), and ageing stiffens TNTZO to about 80 GPa (Ibrahim et al., 2024), which would shrink the bone benefit. Next: fatigue-test LPBF TNTZO.</li>
+        <li><b>Models are simplified:</b> linear, static, bonded; one femur, one load case; a 3.17 mm lattice for the 1.2 mm production cell. Next: press-fit micromotion, gait and stair loads, an LPBF build with micro-CT.</li>
+      </ul>
+      <h4>References</h4>
+      <ol>
+        <li>Hauer et al. (2024) Arch Orthop Trauma Surg 144:5199. <a href="https://doi.org/10.1007/s00402-024-05379-2" target="_blank" rel="noopener">doi.org/10.1007/s00402-024-05379-2</a></li>
+        <li>Ibrahim et al. (2024) Mater Sci Eng A 905:146617. <a href="https://doi.org/10.1016/j.msea.2024.146617" target="_blank" rel="noopener">doi.org/10.1016/j.msea.2024.146617</a></li>
+        <li>Kong et al. (2022) ACS Biomater Sci Eng 8:2336. <a href="https://doi.org/10.1021/acsbiomaterials.1c01277" target="_blank" rel="noopener">doi.org/10.1021/acsbiomaterials.1c01277</a></li>
+        <li><span class="nb">ISO 7206-4</span>:2010. Implants for surgery: partial and total hip joint prostheses, part 4 (endurance of stemmed femoral components).</li>
+        <li>Mehboob et al. (2020) Biomech Model Mechanobiol 19:2213. <a href="https://doi.org/10.1007/s10237-020-01334-3" target="_blank" rel="noopener">doi.org/10.1007/s10237-020-01334-3</a></li>
+        <li>Liu et al. (2021) Front Bioeng Biotechnol 9:772539. <a href="https://doi.org/10.3389/fbioe.2021.772539" target="_blank" rel="noopener">doi.org/10.3389/fbioe.2021.772539</a>; Naghavi et al. (2022) Polymers 14:4600. <a href="https://doi.org/10.3390/polym14214600" target="_blank" rel="noopener">doi.org/10.3390/polym14214600</a></li>
+        <li>Yoshimine (2005) J Biomech 38:125. <a href="https://doi.org/10.1016/j.jbiomech.2004.03.012" target="_blank" rel="noopener">doi.org/10.1016/j.jbiomech.2004.03.012</a></li>
+      </ol>
+      <h4>Acknowledgements</h4>
+      <p>We thank the teaching team of 42722 Biomedical Engineering Design and Additive Manufacturing at UTS. This work received no external funding. The authors declare no conflicts of interest.</p>
+    </footer>
+  </section>
+</div>
+<dialog id="drw-dlg" aria-labelledby="drw-title">
+  <div class="dlgbar">
+    <h2 id="drw-title">FV6 engineering drawing<span>PS2-42722-FV6-001 · A4 · third-angle</span></h2>
+    <div class="dlgtools">
+      <button type="button" class="mini" id="drw-out" aria-label="Zoom out" disabled>−</button>
+      <button type="button" class="mini" id="drw-in" aria-label="Zoom in">+</button>
+      <button type="button" class="mini" id="drw-fit" disabled>Fit</button>
+      <a class="mini" id="drw-pdf" target="_blank" rel="noopener" hidden>PDF</a>
+      <button type="button" class="mini" id="drw-close">Close</button>
+    </div>
+  </div>
+  <div class="dlgbody" id="drw-body" tabindex="0" aria-label="Drawing. Use the arrow keys to move around, plus and minus to zoom.">
+    <img id="drw-full" alt="Engineering drawing of femoral stem FV6, drawing PS2-42722-FV6-001: front and side views with key dimensions (149.4 overall length, 35.4 offset, 137.5 degree neck-shaft angle, Ø14 neck, 9.5 blade), sections A–A and B–B at 2:1, six notes on material, lattice and manufacture, a pictorial view and the title block." hidden>
+    <span class="feaload" id="drw-load">Loading the drawing (250 KB)</span>
+  </div>
+  <p class="dlghint">Tap or click to zoom in where you point, pinch or use + and −, and drag to move around.</p>
+</dialog>
+<noscript><p style="padding:16px">This page needs JavaScript to show the 3D models.</p></noscript>
+<script src="app.js"></script>
+</body>
+</html>
